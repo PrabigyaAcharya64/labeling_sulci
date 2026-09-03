@@ -15,5 +15,4 @@
 </g>
 <g class="fragment">
 <line x1="110" y1="368" x2="760" y2="368" stroke="#E5E7EB" stroke-width="1.5" />
-<text x="110" y="408" text-anchor="start" font-family="Inter, system-ui, sans-serif" font-size="19" fill="#C2410C">all four stated by the authors themselves</text>
 </g></svg>

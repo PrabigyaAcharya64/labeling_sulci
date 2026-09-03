@@ -34,5 +34,4 @@
 <text x="535" y="307" text-anchor="start" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="17" fill="#1A1A1A">0.50</text>
 </g>
 <g class="fragment">
-<text x="450" y="410" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="18" fill="#6B7280">Dice measures overlap, not accuracy — small regions are punished hardest</text>
 </g></svg>
