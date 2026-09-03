@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Boundary and fractional vertices</title>
+<style>
+  :root { --blue:#1D4ED8; --orange:#C2410C; --grey:#6B7280; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#fff; height:100%; overflow:hidden; }
+  body { font-family: Inter, system-ui, -apple-system, sans-serif; color:#1A1A1A; }
+  #stage {
+    position:absolute; top:50%; left:50%;
+    width:900px; height:506px;
+    transform-origin:center center;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .row { display:flex; gap:56px; align-items:center; }
+  .col { display:flex; flex-direction:column; align-items:center; }
+  #grid { width:430px; height:430px; display:block; }
+  .cap { margin-top:14px; font-size:14.5px; color:var(--grey); text-align:center; }
+  .math {
+    border-left:2px solid var(--orange);
+    padding-left:28px;
+    font-family:'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    font-size:16px; line-height:2.05; color:#1A1A1A;
+    white-space:pre;
+  }
+  .hl { color:var(--orange); }
+  .dim { color:var(--grey); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="row">
+    <div class="col">
+      <canvas id="grid" width="430" height="430"></canvas>
+      <div class="cap">grey dots = voxel centres &middot; orange dots = vertices created</div>
+    </div>
+    <div class="math" id="math"></div>
+  </div>
+</div>
+
+<script>
+// Forward deck navigation keys to the parent: once focus is inside this iframe
+// reveal.js stops receiving them, which makes the arrow keys appear stuck.
+window.addEventListener('keydown', function (e) {
+  if (window.parent === window) return;
+  const keys = ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Escape'];
+  if (keys.indexOf(e.key) === -1) return;
+  e.preventDefault();
+  window.parent.postMessage({ type: 'deckkey', key: e.key }, '*');
+});
+
+(function () {
+  const stage = document.getElementById('stage');
+  function fit() {
+    const s = Math.min(window.innerWidth / 900, window.innerHeight / 506);
+    stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+  }
+  fit();
+  window.addEventListener('resize', fit);
+  new ResizeObserver(fit).observe(document.body);
+})();
+
+const N = 160, K = 80;                   // K = slice index
+const AIR = 5, SKULL = 48, CSF = 28, GM = 95, WM = 165;
+const BASE = [AIR, SKULL, CSF, GM, WM];
+const T = 128;                           // threshold
+
+function grainAt(x, y) {
+  let h = (x * 374761393 + y * 668265263) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h = (h ^ (h >>> 16)) >>> 0;
+  return (h % 15) - 7;
+}
+
+function folds(nx, ny) {
+  return 1.00 * Math.sin(nx * 21.0 + 0.3) * Math.sin(ny * 19.0 - 0.7)
+       + 0.60 * Math.sin(nx * 34.0 - 1.2) * Math.sin(ny * 38.0 + 0.4)
+       + 0.40 * Math.sin((nx + ny) * 47.0) * Math.sin((nx - ny) * 43.0)
+       + 0.25 * Math.sin(nx * 61.0 + 2.0) * Math.sin(ny * 57.0 - 0.9);
+}
+
+function classAt(x, y) {
+  const nx = (x + 0.5) / N - 0.5, ny = (y + 0.5) / N - 0.5;
+  const e = Math.sqrt((nx / 0.395) * (nx / 0.395) + (ny / 0.452) * (ny / 0.452));
+  if (e > 1.15)  return 0;
+  if (e > 1.055) return 1;
+  if (e > 1.00)  return 2;
+  const g = (1 - e) * 3.0 + folds(nx, ny) * 0.62;
+  if (g > 0.95) return 4;
+  if (g > 0.42) return 3;
+  return 2;
+}
+
+const scan = new Uint8Array(N * N);
+const cls  = new Uint8Array(N * N);
+for (let y = 0; y < N; y++) {
+  for (let x = 0; x < N; x++) {
+    const c = classAt(x, y);
+    cls[y * N + x] = c;
+    const v = BASE[c] + (c === 0 ? 0 : grainAt(x, y));
+    scan[y * N + x] = Math.max(0, Math.min(255, v));
+  }
+}
+
+function pickWindow() {
+  const tx = N * 0.36, ty = N * 0.52;
+  let best = null;
+  for (let wy = 16; wy <= N - 8 - 16; wy++) {
+    for (let wx = 16; wx <= N - 8 - 16; wx++) {
+      let hi = 0, clean = true;
+      for (let dy = 0; dy < 8 && clean; dy++) {
+        for (let dx = 0; dx < 8; dx++) {
+          const c = cls[(wy + dy) * N + wx + dx];
+          if (c === 0 || c === 1) { clean = false; break; }
+          if (scan[(wy + dy) * N + wx + dx] >= T) hi++;
+        }
+      }
+      if (!clean) continue;
+      const score = Math.min(hi, 64 - hi);
+      const d = Math.hypot(wx + 4 - tx, wy + 4 - ty);
+      if (!best || score > best.score || (score === best.score && d < best.d))
+        best = { wx, wy, score, d };
+    }
+  }
+  return best;
+}
+const W = pickWindow();
+
+// local 8x8 sample of the window
+const v = (i, j) => scan[(W.wy + j) * N + W.wx + i];
+
+const CELL = 50, OX = 40, OY = 40;
+const px = i => OX + i * CELL;
+const py = j => OY + j * CELL;
+
+const ctx = document.getElementById('grid').getContext('2d');
+
+// --- marching squares over the 2x2 blocks -----------------------------------
+const TOP = 0, RIGHT = 1, BOTTOM = 2, LEFT = 3;
+const TABLE = {
+  0: [], 15: [],
+  1: [[LEFT, BOTTOM]],   2: [[BOTTOM, RIGHT]], 3: [[LEFT, RIGHT]],
+  4: [[TOP, RIGHT]],     5: [[TOP, LEFT], [BOTTOM, RIGHT]],
+  6: [[TOP, BOTTOM]],    7: [[TOP, LEFT]],     8: [[TOP, LEFT]],
+  9: [[TOP, BOTTOM]],   10: [[TOP, RIGHT], [LEFT, BOTTOM]],
+  11: [[TOP, RIGHT]],   12: [[LEFT, RIGHT]],  13: [[BOTTOM, RIGHT]],
+  14: [[LEFT, BOTTOM]]
+};
+
+// linear interpolation of the threshold crossing between two samples
+const lerp = (a, b) => (T - a) / (b - a);
+
+function edgePoint(i, j, edge) {
+  let a, b, f;
+  switch (edge) {
+    case TOP:    a = v(i, j);     b = v(i + 1, j);     f = lerp(a, b); return [i + f, j];
+    case RIGHT:  a = v(i + 1, j); b = v(i + 1, j + 1); f = lerp(a, b); return [i + 1, j + f];
+    case BOTTOM: a = v(i, j + 1); b = v(i + 1, j + 1); f = lerp(a, b); return [i + f, j + 1];
+    case LEFT:   a = v(i, j);     b = v(i, j + 1);     f = lerp(a, b); return [i, j + f];
+  }
+}
+
+const segments = [], crossings = [];
+for (let j = 0; j < 7; j++) {
+  for (let i = 0; i < 7; i++) {
+    const a = v(i, j) >= T, b = v(i + 1, j) >= T,
+          c = v(i + 1, j + 1) >= T, d = v(i, j + 1) >= T;
+    const idx = (a ? 8 : 0) + (b ? 4 : 0) + (c ? 2 : 0) + (d ? 1 : 0);
+    for (const [e1, e2] of (TABLE[idx] || [])) {
+      const p1 = edgePoint(i, j, e1), p2 = edgePoint(i, j, e2);
+      segments.push([p1, p2]);
+      crossings.push(p1, p2);
+    }
+  }
+}
+
+// --- draw -------------------------------------------------------------------
+// voxel centres
+for (let j = 0; j < 8; j++) {
+  for (let i = 0; i < 8; i++) {
+    const val = v(i, j);
+    ctx.beginPath();
+    ctx.arc(px(i), py(j), 9, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgb(' + val + ',' + val + ',' + val + ')';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = val >= T ? '#1D4ED8' : '#9CA3AF';
+    ctx.stroke();
+  }
+}
+
+// contour
+ctx.strokeStyle = '#C2410C';
+ctx.lineWidth = 2.5;
+ctx.lineCap = 'round';
+for (const [p1, p2] of segments) {
+  ctx.beginPath();
+  ctx.moveTo(px(p1[0]), py(p1[1]));
+  ctx.lineTo(px(p2[0]), py(p2[1]));
+  ctx.stroke();
+}
+
+// vertices created at each edge crossing
+ctx.fillStyle = '#C2410C';
+for (const p of crossings) {
+  ctx.beginPath();
+  ctx.arc(px(p[0]), py(p[1]), 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// --- the arithmetic for the first horizontal crossing ------------------------
+let found = null;
+outer:
+for (let j = 0; j < 8; j++) {
+  for (let i = 0; i < 7; i++) {
+    const A = v(i, j), B = v(i + 1, j);
+    if ((A >= T) !== (B >= T)) { found = { i, j, A, B }; break outer; }
+  }
+}
+
+if (found) {
+  const { i, j, A, B } = found;
+  const gx = W.wx + i, gy = W.wy + j;
+  const f = (T - A) / (B - A);
+  const x = gx + f;
+  document.getElementById('math').innerHTML =
+    'A = scan[' + gx + ',' + gy + ',' + K + '] = ' + A + '\n' +
+    'B = scan[' + (gx + 1) + ',' + gy + ',' + K + '] = ' + B + '\n' +
+    'threshold = ' + T + '\n\n' +
+    'f = (' + T + ' - A) / (B - A)\n' +
+    'f = <span class="hl">' + f.toFixed(3) + '</span>\n\n' +
+    'x = <span class="hl">' + x.toFixed(3) + '</span>\n' +
+    '<span class="dim">between two voxels</span>';
+}
+</script>
+</body>
+</html>

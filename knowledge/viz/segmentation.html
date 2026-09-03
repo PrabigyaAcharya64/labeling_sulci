@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Segmentation</title>
+<style>
+  :root { --orange:#C2410C; --grey:#6B7280; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#fff; height:100%; overflow:hidden; }
+  body { font-family: Inter, system-ui, -apple-system, sans-serif; color:#1A1A1A; }
+  #stage {
+    position:absolute; top:50%; left:50%;
+    width:900px; height:506px;
+    transform-origin:center center;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .col { display:flex; flex-direction:column; align-items:center; }
+  .row { display:flex; gap:80px; align-items:flex-start; }
+  canvas { width:300px; height:300px; display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
+  .cap { margin-top:16px; font-size:15px; color:var(--grey); text-align:center; }
+  .legend { display:flex; gap:34px; margin-top:34px; }
+  .item { display:flex; align-items:center; gap:9px; font-size:14px; color:var(--grey); }
+  .sw { width:15px; height:15px; display:block; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="col">
+    <div class="row">
+      <div class="col">
+        <canvas id="raw" width="160" height="160"></canvas>
+        <div class="cap">raw intensities</div>
+      </div>
+      <div class="col">
+        <canvas id="seg" width="160" height="160"></canvas>
+        <div class="cap">every voxel assigned a tissue class</div>
+      </div>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+</div>
+
+<script>
+// Forward deck navigation keys to the parent: once focus is inside this iframe
+// reveal.js stops receiving them, which makes the arrow keys appear stuck.
+window.addEventListener('keydown', function (e) {
+  if (window.parent === window) return;
+  const keys = ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Escape'];
+  if (keys.indexOf(e.key) === -1) return;
+  e.preventDefault();
+  window.parent.postMessage({ type: 'deckkey', key: e.key }, '*');
+});
+
+(function () {
+  const stage = document.getElementById('stage');
+  function fit() {
+    const s = Math.min(window.innerWidth / 900, window.innerHeight / 506);
+    stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+  }
+  fit();
+  window.addEventListener('resize', fit);
+  new ResizeObserver(fit).observe(document.body);
+})();
+
+const N = 160;
+
+// tissue codes — index into BASE, TONE and NAME
+const AIR = 0, SKULL = 1, CSF = 2, GM = 3, WM = 4;
+
+// mean intensity of each tissue in the raw panel
+const BASE = [5, 48, 28, 95, 165];
+
+function grainAt(x, y) {
+  let h = (x * 374761393 + y * 668265263) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h = (h ^ (h >>> 16)) >>> 0;
+  return (h % 15) - 7;
+}
+
+// elliptical radius; 1.0 is the inner wall of the skull
+function ellipAt(nx, ny) {
+  const a = nx / 0.395, b = ny / 0.452;
+  return Math.sqrt(a * a + b * b);
+}
+
+// The grey/white boundary, as a radius that wiggles with angle. `s` is sulcal
+// depth: 0 on a gyral crown, 1 at a sulcal fundus. Building it from a raised
+// cosine and clamping means the crowns all reach the same outer envelope
+// rather than falling short at random, which is what keeps CSF down to thin
+// clefts and a narrow rim instead of a broad pool. Integer harmonics stay
+// continuous across the atan2 seam; the 2D term stops the folds reading as a
+// sunburst; the radius never nears zero, so white matter stays connected.
+// CROWN sits high enough that cortex nearly reaches the inner skull wall,
+// leaving only a narrow rim of CSF, but stays below it once GM_THICKNESS is
+// added so the ribbon is never clipped by the cavity boundary.
+const CROWN = 0.875, DEPTH = 0.34;
+
+function wmRadius(nx, ny) {
+  const th = Math.atan2(ny, nx);
+  // phase wobble spaces the sulci unevenly
+  const base = 0.5 * (1 + Math.cos(14 * th + 0.4 + 0.35 * Math.sin(3 * th)));
+  // The exponent decides how much of the circumference is gyral crown. A low
+  // power erodes the crowns to points and the sulci open into wide wedges of
+  // CSF; a high one keeps the crowns broad and flat so each sulcus stays a
+  // narrow slit between two facing banks of cortex.
+  let s = Math.pow(base, 6.0) * (0.75 + 0.25 * Math.sin(5 * th + 1.3));
+  s = Math.max(0, Math.min(1, s));
+  return CROWN + 0.010 * Math.sin(3 * th + 1.0)
+               + 0.012 * Math.sin(nx * 15.0) * Math.sin(ny * 13.0)
+               - DEPTH * s;
+}
+
+// negative inside white matter, positive outside; zero on the boundary
+function phiAt(nx, ny) {
+  return ellipAt(nx, ny) - wmRadius(nx, ny);
+}
+
+// phi divided by |grad phi| turns the implicit function into an approximate
+// signed DISTANCE from the grey/white boundary. Without that normalisation
+// the ribbon thins wherever the boundary runs steeply; with it, cortex keeps
+// a constant thickness the whole way round, including inside the folds.
+const H = 1 / N;
+const phi = new Float32Array(N * N);
+for (let y = 0; y < N; y++) {
+  for (let x = 0; x < N; x++) {
+    phi[y * N + x] = phiAt((x + 0.5) / N - 0.5, (y + 0.5) / N - 0.5);
+  }
+}
+
+const dist = new Float32Array(N * N);
+for (let y = 0; y < N; y++) {
+  for (let x = 0; x < N; x++) {
+    const xp = Math.min(x + 1, N - 1), xm = Math.max(x - 1, 0);
+    const yp = Math.min(y + 1, N - 1), ym = Math.max(y - 1, 0);
+    const gx = (phi[y * N + xp] - phi[y * N + xm]) / ((xp - xm) * H);
+    const gy = (phi[yp * N + x] - phi[ym * N + x]) / ((yp - ym) * H);
+    const g = Math.sqrt(gx * gx + gy * gy);
+    dist[y * N + x] = phi[y * N + x] / Math.max(g, 1e-6);
+  }
+}
+
+// cortical thickness in normalised units — about 6 voxels at N = 160, left
+// narrow enough that two facing banks still leave a visible cleft between them
+const GM_THICKNESS = 0.038;
+
+function classAt(x, y) {
+  const nx = (x + 0.5) / N - 0.5, ny = (y + 0.5) / N - 0.5;
+  const e = ellipAt(nx, ny);
+  if (e > 1.15)  return AIR;
+  if (e > 1.055) return SKULL;          // thin ring outside everything
+  if (e > 1.00)  return CSF;            // narrow rim at the outer edge
+  const d = dist[y * N + x];
+  if (d < 0) return WM;                 // one connected central mass
+  if (d < GM_THICKNESS) return GM;      // ribbon wrapping that mass
+  return CSF;                           // clefts penetrating between folds
+}
+
+const scan = new Uint8Array(N * N);
+const cls  = new Uint8Array(N * N);
+for (let y = 0; y < N; y++) {
+  for (let x = 0; x < N; x++) {
+    const c = classAt(x, y);
+    cls[y * N + x] = c;
+    const v = BASE[c] + (c === 0 ? 0 : grainAt(x, y));
+    scan[y * N + x] = Math.max(0, Math.min(255, v));
+  }
+}
+
+// flat grey-blue tone per tissue class
+const TONE = [
+  [8, 9, 11],      // air
+  [76, 90, 102],   // skull
+  [194, 208, 221], // csf
+  [122, 147, 172], // grey matter
+  [51, 82, 111]    // white matter
+];
+const NAME = ['', 'skull', 'CSF', 'grey matter', 'white matter'];
+
+function paint(id, fn) {
+  const ctx = document.getElementById(id).getContext('2d');
+  const img = ctx.createImageData(N, N);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const i = (y * N + x) * 4, rgb = fn(x, y);
+      img.data[i] = rgb[0]; img.data[i + 1] = rgb[1];
+      img.data[i + 2] = rgb[2]; img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+paint('raw', (x, y) => { const v = scan[y * N + x]; return [v, v, v]; });
+paint('seg', (x, y) => TONE[cls[y * N + x]]);
+
+document.getElementById('legend').innerHTML = [4, 3, 2, 1].map(c => {
+  const t = TONE[c];
+  return '<div class="item"><span class="sw" style="background:rgb(' +
+    t[0] + ',' + t[1] + ',' + t[2] + ')"></span>' + NAME[c] + '</div>';
+}).join('');
+</script>
+</body>
+</html>

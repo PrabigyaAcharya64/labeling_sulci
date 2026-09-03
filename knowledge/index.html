@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sulci — deck</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Inter:wght@400;500&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:    #FFFFFF;   /* pure white */
+      --ink:   #1A1A1A;   /* headings   */
+      --muted: #6B7280;   /* labels     */
+      --new:   #C2410C;   /* the paper's contribution */
+      --old:   #1D4ED8;   /* borrowed / setup / baselines */
+      --rule:  #E5E7EB;   /* hairlines  */
+    }
+
+    .reveal-viewport { background: var(--bg); }
+
+    .reveal {
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--ink);
+    }
+
+    /* Headings — serif, 44px */
+    .reveal h1, .reveal h2, .reveal h3 {
+      font-family: 'Newsreader', Georgia, serif;
+      font-weight: 500;
+      color: var(--ink);
+      text-transform: none;
+      letter-spacing: normal;
+    }
+    .reveal h2 { font-size: 44px; }
+
+    /* Numbers — mono */
+    .reveal .num,
+    .reveal code { font-family: 'IBM Plex Mono', monospace; }
+
+    /* Fragments: fade only, no motion */
+    .reveal .fragment { transition: opacity 300ms ease-out; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal .fragment { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section data-markdown="slides/01-sulci.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/02-types.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/03-why.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/04-process.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/05-mri.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/06-freesurfer.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/07-segmentation.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/08-boundary.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/09-mesh.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/10-surfaces.md" data-autoplay="1200"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/11-features.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/12-feature-1.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/13-feature-2.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/14-feature-3.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/15-labelling.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/16-problems.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/17-problem-1.md" data-autoplay="1200"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/18-problem-2.md" data-autoplay="1200"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/19-problem-3.md" data-autoplay="1200"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/20-solution.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/21-solution-stated.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/22-solution-both.md" data-autoplay="1200"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/23-augmentation.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/24-aug-idea.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/25-aug-mechanism.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/26-aug-yield.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/27-training.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/28-two-stages.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/29-inference.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/30-results.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+      <section data-markdown="slides/31-limitations.md"
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:"></section>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/markdown/markdown.js"></script>
+  <script>
+    Reveal.initialize({
+      plugins: [ RevealMarkdown ],
+      navigationMode: 'linear',
+      transition: 'fade',
+      transitionSpeed: 'fast',
+      controls: false,
+      progress: false,
+      slideNumber: false,
+      hash: true,
+      fragments: true
+    });
+
+    Reveal.addKeyBinding({ keyCode: 40, key: '↓', description: 'Next slide' },
+      () => Reveal.slide(Reveal.getIndices().h + 1, 0));
+    Reveal.addKeyBinding({ keyCode: 38, key: '↑', description: 'Prev slide' },
+      () => Reveal.slide(Math.max(0, Reveal.getIndices().h - 1), 0));
+
+    // Slide iframes take keyboard focus when clicked, after which reveal.js
+    // never sees the arrow keys. Each iframe forwards them here instead.
+    window.addEventListener('message', e => {
+      if (!e.data || e.data.type !== 'deckkey') return;
+      switch (e.data.key) {
+        case 'ArrowRight':
+        case ' ':         Reveal.next(); break;
+        case 'ArrowLeft': Reveal.prev(); break;
+        case 'ArrowDown': Reveal.slide(Reveal.getIndices().h + 1, 0); break;
+        case 'ArrowUp':   Reveal.slide(Math.max(0, Reveal.getIndices().h - 1), 0); break;
+        case 'Escape':    Reveal.toggleOverview(); break;
+      }
+    });
+
+    // Slides that build themselves. On arriving at one, step its fragments
+    // forward on a timer. Any keypress or click hands control straight back to
+    // the presenter, and leaving the slide cancels whatever is still pending.
+    let autoTimer = null, autoArming = false;
+    function stopAuto() { clearTimeout(autoTimer); autoTimer = null; }
+    function startAuto(section) {
+      stopAuto();
+      if (autoArming) return;
+      if (!section || !section.hasAttribute('data-autoplay')) return;
+      if (!section.querySelector('.fragment')) return;
+      const step = Number(section.getAttribute('data-autoplay')) || 1200;
+      const i = Reveal.getIndices();
+      autoArming = true;
+      Reveal.slide(i.h, i.v, -1);          // rewind so the build starts empty
+      autoArming = false;
+      (function tick() {
+        autoTimer = setTimeout(function () {
+          if (Reveal.getCurrentSlide() !== section) return stopAuto();
+          if (Reveal.nextFragment()) tick(); else stopAuto();
+        }, step);
+      })();
+    }
+    Reveal.on('ready', e => startAuto(e.currentSlide));
+    Reveal.on('slidechanged', e => startAuto(e.currentSlide));
+    ['keydown', 'mousedown'].forEach(ev =>
+      document.addEventListener(ev, stopAuto, true));
+  </script>
+</body>
+</html>

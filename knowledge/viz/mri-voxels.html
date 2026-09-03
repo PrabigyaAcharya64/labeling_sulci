@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MRI to 3D tensor (Voxel Grid)</title>
+<style>
+  :root { --orange:#C2410C; --grey:#6B7280; --rule:#E5E7EB; --ink:#1A1A1A; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#fff; height:100%; overflow:hidden; }
+  body { font-family: Inter, system-ui, -apple-system, sans-serif; color:var(--ink); }
+  #stage {
+    position:absolute; top:50%; left:50%;
+    width:900px; height:506px;
+    transform-origin:center center;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .wrap { display:flex; gap:64px; align-items:flex-start; }
+
+  .panel {
+    display:flex; flex-direction:column; align-items:center;
+    opacity:0; transition:opacity 320ms ease-out;
+  }
+  .panel.on { opacity:1; }
+
+  /* 1px rule showing through the gaps draws the wireframe */
+  .grid {
+    display:grid;
+    grid-template-columns:repeat(6, 34px);
+    grid-auto-rows:34px;
+    gap:1px; padding:1px;
+    background:var(--rule);
+  }
+  .cell { background:#fff; position:relative; }
+  .fill { position:absolute; inset:0; opacity:0; transition:opacity 300ms ease-out; }
+  .fill.on { opacity:1; }
+
+  /* drawn outside the cell, so marking a voxel never hides its value */
+  .cell.mark { z-index:2; box-shadow:0 0 0 3px var(--orange); }
+  .cell { transition:box-shadow 240ms ease-out; }
+
+  /* fixed-height slot keeps all three captions on one baseline */
+  .note { height:58px; margin-top:18px; text-align:center; }
+  .callout { opacity:0; transition:opacity 320ms ease-out; }
+  .callout.on { opacity:1; }
+  .mono { font-family:'IBM Plex Mono', ui-monospace, Menlo, monospace; }
+  .addr { font-size:15px; color:var(--ink); }
+  .gloss { font-size:13px; color:var(--grey); margin-top:7px; }
+
+  .cap { font-size:15px; color:var(--grey); text-align:center; line-height:1.6; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel, .fill, .callout, .cell { transition:none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="wrap">
+    <div class="panel" id="panelA">
+      <div class="grid" id="gridA"></div>
+      <div class="note"></div>
+      <div class="cap">a grid of positions</div>
+    </div>
+    <div class="panel" id="panelB">
+      <div class="grid" id="gridB"></div>
+      <div class="note"></div>
+      <div class="cap">the scanner measures<br>one number per position</div>
+    </div>
+    <div class="panel" id="panelC">
+      <div class="grid" id="gridC"></div>
+      <div class="note">
+        <div class="callout" id="callout">
+          <div class="mono addr">scan[100, 128, 140] = 164</div>
+          <div class="mono gloss">one voxel = one address + one number</div>
+        </div>
+      </div>
+      <div class="cap">index is the address, not the value</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const stage = document.getElementById('stage');
+function fit() {
+  const s = Math.min(window.innerWidth / 900, window.innerHeight / 506);
+  stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+}
+
+// Forward deck navigation keys to the parent: once focus is inside this iframe
+// reveal.js stops receiving them, which makes the arrow keys appear stuck.
+window.addEventListener('keydown', function (e) {
+  if (window.parent === window) return;
+  const keys = ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Escape'];
+  if (keys.indexOf(e.key) === -1) return;
+  e.preventDefault();
+  window.parent.postMessage({ type: 'deckkey', key: e.key }, '*');
+});
+
+// A patch of tissue running from a dark cleft into bright white matter. Hand
+// authored rather than sampled: this slide is about what a voxel is, so the
+// numbers only need to be plausible and legible.
+const VALUES = [
+   28,  35,  92, 140, 158, 150,
+   31,  88, 145, 164, 168, 152,
+   86, 140, 170, 176, 170, 141,
+  138, 166, 178, 172, 150,  95,
+  150, 170, 168, 148,  92,  38,
+  144, 152, 140,  90,  36,  30
+];
+const COLS = 6, TOTAL = VALUES.length;
+const MARKED = 1 * COLS + 3;          // the cell holding 164
+const BATCH = 6;
+
+const grey = v => 'rgb(' + v + ',' + v + ',' + v + ')';
+
+// left: empty. middle: fills during the animation. right: complete.
+function build(el, mode) {
+  const fills = [];
+  for (let i = 0; i < TOTAL; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    if (mode !== 'empty') {
+      const fill = document.createElement('div');
+      fill.className = 'fill';
+      fill.style.background = grey(VALUES[i]);
+      if (mode === 'full') fill.classList.add('on');
+      cell.appendChild(fill);
+      fills.push(fill);
+    }
+    el.appendChild(cell);
+  }
+  return fills;
+}
+
+build(document.getElementById('gridA'), 'empty');
+const middle = build(document.getElementById('gridB'), 'blank');
+build(document.getElementById('gridC'), 'full');
+
+const panelA = document.getElementById('panelA');
+const panelB = document.getElementById('panelB');
+const panelC = document.getElementById('panelC');
+const callout = document.getElementById('callout');
+const markCell = document.querySelectorAll('#gridC .cell')[MARKED];
+
+// Scattered rather than raster order: values arrive into slots that already
+// exist, which is the point. A raster sweep would read as acquisition again.
+function shuffled(n, seed) {
+  const a = [...Array(n).keys()];
+  let s = seed >>> 0;
+  const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+const ORDER = shuffled(TOTAL, 20260901);
+
+// ---------------------------------------------------------------------------
+// the sequence: positions exist, values arrive, one voxel is picked out
+// ---------------------------------------------------------------------------
+let timers = [];
+const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+
+function reset() {
+  timers.forEach(clearTimeout);
+  timers = [];
+  [panelA, panelB, panelC].forEach(p => p.classList.remove('on'));
+  middle.forEach(f => f.classList.remove('on'));
+  markCell.classList.remove('mark');
+  callout.classList.remove('on');
+}
+
+// The sequence runs whatever the motion preference is: the ORDER of reveal is
+// the content of this slide, not decoration. Reduced motion drops the fades
+// (see the media query above), so each step snaps in instead of easing.
+function play() {
+  reset();
+  at(60,   () => panelA.classList.add('on'));          // the empty grid
+  at(900,  () => panelB.classList.add('on'));          // the same grid again
+  for (let b = 0; b < TOTAL / BATCH; b++) {            // values arriving
+    at(1300 + b * 320, () => {
+      for (let k = 0; k < BATCH; k++) middle[ORDER[b * BATCH + k]].classList.add('on');
+    });
+  }
+  at(3600, () => panelC.classList.add('on'));          // the finished volume
+  at(4150, () => markCell.classList.add('mark'));      // one voxel selected
+  at(4550, () => callout.classList.add('on'));         // its address and value
+}
+
+// Reveal.js gives non-present slides `display: none`, which leaves this frame
+// with zero layout. Starting on the 0 -> visible edge means the sequence runs
+// when the slide is actually reached, and replays on every return to it,
+// rather than playing to the end while the deck is still on slide 1.
+let onScreen = false;
+function checkVisible() {
+  const now = window.innerWidth > 0 && window.innerHeight > 0;
+  if (now && !onScreen) { onScreen = true; fit(); play(); }
+  else if (!now && onScreen) { onScreen = false; }
+}
+
+window.addEventListener('resize', () => { fit(); checkVisible(); });
+new ResizeObserver(() => { fit(); checkVisible(); }).observe(document.body);
+setInterval(checkVisible, 250);      // backstop if no resize is reported
+fit();
+checkVisible();
+
+document.addEventListener('click', play);   // replay on demand
+</script>
+</body>
+</html>
