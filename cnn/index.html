@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How a CNN Works</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Inter:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:    #FFFFFF;   /* pure white */
+      --ink:   #1A1A1A;   /* headings   */
+      --muted: #6B7280;   /* labels     */
+      --new:   #C2410C;   /* active window / result (orange) */
+      --old:   #1D4ED8;   /* input / data (blue) */
+      --rule:  #E5E7EB;   /* hairlines  */
+    }
+    .reveal-viewport { background: var(--bg); }
+    .reveal { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); }
+    .reveal h1, .reveal h2, .reveal h3 {
+      font-family: 'Newsreader', Georgia, serif;
+      font-weight: 500; color: var(--ink);
+      text-transform: none; letter-spacing: normal;
+    }
+    .reveal h2 { font-size: 44px; }
+    .reveal .num, .reveal code { font-family: 'IBM Plex Mono', monospace; }
+    .reveal .fragment { transition: opacity 300ms ease-out; }
+    @media (prefers-reduced-motion: reduce) { .reveal .fragment { transition: none; } }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section data-markdown="slides/01-title.md" data-separator="^\r?\n---\r?\n$"></section>
+      <section data-markdown="slides/02-flow.md" data-separator="^\r?\n---\r?\n$"></section>
+      <section data-markdown="slides/03-steps.md" data-separator="^\r?\n---\r?\n$"></section>
+      <section data-markdown="slides/04-image.md" data-separator="^\r?\n---\r?\n$"></section>
+      <section data-markdown="slides/05-conv-grid.md" data-separator="^\r?\n---\r?\n$"></section>
+      <section data-markdown="slides/06-conv-sphere.md" data-separator="^\r?\n---\r?\n$"></section>
+      <section data-markdown="slides/07-pooling.md" data-separator="^\r?\n---\r?\n$"></section>
+      <section data-markdown="slides/08-detail.md" data-separator="^\r?\n---\r?\n$"></section>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/markdown/markdown.js"></script>
+  <script>
+    Reveal.initialize({
+      plugins: [ RevealMarkdown ],
+      navigationMode: 'linear',
+      transition: 'fade', transitionSpeed: 'fast',
+      controls: false, progress: false, slideNumber: false,
+      hash: true, fragments: true
+    });
+    Reveal.addKeyBinding({ keyCode: 40, key: '↓', description: 'Next slide' },
+      () => Reveal.slide(Reveal.getIndices().h + 1, 0));
+    Reveal.addKeyBinding({ keyCode: 38, key: '↑', description: 'Prev slide' },
+      () => Reveal.slide(Math.max(0, Reveal.getIndices().h - 1), 0));
+
+    // iframes take keyboard focus when clicked; they forward deck keys here.
+    window.addEventListener('message', e => {
+      if (!e.data || e.data.type !== 'deckkey') return;
+      switch (e.data.key) {
+        case 'ArrowRight':
+        case ' ':         Reveal.next(); break;
+        case 'ArrowLeft': Reveal.prev(); break;
+        case 'ArrowDown': Reveal.slide(Reveal.getIndices().h + 1, 0); break;
+        case 'ArrowUp':   Reveal.slide(Math.max(0, Reveal.getIndices().h - 1), 0); break;
+        case 'Escape':    Reveal.toggleOverview(); break;
+      }
+    });
+  </script>
+</body>
+</html>
