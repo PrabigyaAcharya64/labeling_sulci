@@ -3,7 +3,7 @@
 <div style="display:flex;align-items:center;justify-content:center;gap:44px;font-family:Inter,system-ui,sans-serif;">
 
 <div class="fragment" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
-<img src="figs/cat.jpg" alt="cat" style="width:200px;height:200px;object-fit:cover;border:1px solid #E5E7EB;"
+<img src="images/cat.jpg" alt="cat" style="width:200px;height:200px;object-fit:cover;border:1px solid #E5E7EB;"
  onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
 <div style="display:none;width:200px;height:200px;border:1px dashed #6B7280;align-items:center;justify-content:center;text-align:center;color:#6B7280;font-size:14px;">add your cat<br>figs/cat.jpg</div>
 <div style="font-size:15px;color:#6B7280;">a picture</div>
