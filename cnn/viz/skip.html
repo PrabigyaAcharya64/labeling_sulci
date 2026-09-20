@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skip connections</title>
+<style>
+  :root{--orange:#C2410C;--grey:#6B7280;--rule:#E5E7EB;--ink:#1A1A1A;--blue:#1D4ED8;}
+  html,body{margin:0;padding:0;height:100%;background:#fff;overflow:hidden;}
+  body{font-family:Inter,system-ui,sans-serif;color:var(--ink);}
+  #stage{position:absolute;top:50%;left:50%;width:900px;height:506px;transform-origin:center center;}
+</style>
+</head>
+<body>
+<div id="stage"><svg id="svg" viewBox="0 0 900 506" width="900" height="506"></svg></div>
+<script>
+window.addEventListener('keydown',e=>{
+  if(window.parent===window)return;
+  const k=['ArrowRight','ArrowLeft','ArrowUp','ArrowDown',' ','Escape'];
+  if(k.indexOf(e.key)<0)return; e.preventDefault();
+  window.parent.postMessage({type:'deckkey',key:e.key},'*');
+});
+(function(){const s=document.getElementById('stage');
+ function fit(){const k=Math.min(innerWidth/900,innerHeight/506);s.style.transform=`translate(-50%,-50%) scale(${k})`;}
+ fit();addEventListener('resize',fit);new ResizeObserver(fit).observe(document.body);})();
+
+const O="#C2410C",G="#6B7280",R="#E5E7EB",K="#1A1A1A",B="#1D4ED8";
+const NS="http://www.w3.org/2000/svg", svg=document.getElementById('svg');
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function tx(x,y,s,o={}){const e=el('text',{x,y,'text-anchor':o.a||'middle','font-size':o.s||14,fill:o.f||K,'font-family':o.ff||"Inter,system-ui,sans-serif"});e.textContent=s;return e;}
+
+// ---- the shape: a wavy blob, so the boundary carries real detail ----
+function Rad(th){return 0.30+0.065*Math.cos(3*th+0.5);}
+function inside(nx,ny){const dx=nx-0.5,dy=ny-0.47,r=Math.hypot(dx,dy);if(r<1e-6)return 1;return r<=Rad(Math.atan2(dy,dx))?1:0;}
+// value color: lerp grey(217,220,225) -> orange(194,65,12)
+function col(v){const a=[217,220,225],b=[194,65,12];return `rgb(${Math.round(a[0]+(b[0]-a[0])*v)},${Math.round(a[1]+(b[1]-a[1])*v)},${Math.round(a[2]+(b[2]-a[2])*v)})`;}
+
+const N=16, C=4;
+const hv=[]; for(let r=0;r<N;r++){hv.push([]);for(let c=0;c<N;c++)hv[r].push(inside((c+0.5)/N,(r+0.5)/N));}
+const cv=[]; for(let R2=0;R2<C;R2++){cv.push([]);for(let C2=0;C2<C;C2++){let s=0;for(let i=0;i<4;i++)for(let j=0;j<4;j++)s+=hv[R2*4+i][C2*4+j];cv[R2].push(s/16);}}
+function bilerp(r,c){ // coarse -> 16x16, smooth (blurry)
+  let fy=(r+0.5)/N*C-0.5, fx=(c+0.5)/N*C-0.5;
+  fy=Math.max(0,Math.min(C-1,fy)); fx=Math.max(0,Math.min(C-1,fx));
+  const y0=Math.floor(fy),x0=Math.floor(fx),y1=Math.min(C-1,y0+1),x1=Math.min(C-1,x0+1),ty=fy-y0,tx2=fx-x0;
+  return cv[y0][x0]*(1-tx2)*(1-ty)+cv[y0][x1]*tx2*(1-ty)+cv[y1][x0]*(1-tx2)*ty+cv[y1][x1]*tx2*ty;
+}
+
+// ---- layout ----
+const IX=64,IY=150,IC=8;                 // input 16x16
+const CX=272,CY=178,CC=22;               // coarse 4x4
+const WX=590,WY=96,OC=7;                 // no-skip output
+const SX=590,SY=286;                     // with-skip output
+
+function grid(gx,gy,n,cell,valfn,animated){
+  const cells=[];
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++){
+    const rect=el('rect',{x:gx+c*cell,y:gy+r*cell,width:cell+0.4,height:cell+0.4,fill:valfn(r,c),opacity:animated?0:1});
+    svg.appendChild(rect); cells.push(rect);
+  }
+  svg.appendChild(el('rect',{x:gx,y:gy,width:n*cell,height:n*cell,fill:'none',stroke:R,'stroke-width':1.2}));
+  return cells;
+}
+// static input (fades in)
+const inCells=grid(IX,IY,N,IC,(r,c)=>col(hv[r][c]),true);
+// coarse (fills during pooling)
+const coCells=grid(CX,CY,C,CC,(r,c)=>col(cv[r][c]),true);
+// outputs
+const woCells=grid(WX,WY,N,OC,(r,c)=>col(bilerp(r,c)),true);
+const wsCells=grid(SX,SY,N,OC,(r,c)=>col(hv[r][c]),true);
+
+// true-boundary overlay on both outputs
+function boundary(gx,gy){
+  const cx=gx+0.5*N*OC, cy=gy+0.47*N*OC, pts=[];
+  for(let i=0;i<=90;i++){const th=i/90*2*Math.PI,rr=Rad(th)*N*OC;pts.push((cx+rr*Math.cos(th)).toFixed(1)+','+(cy+rr*Math.sin(th)).toFixed(1));}
+  return el('polyline',{points:pts.join(' '),fill:'none',stroke:K,'stroke-width':1.3,'stroke-dasharray':'3 3',opacity:0});
+}
+const woLine=boundary(WX,WY), wsLine=boundary(SX,SY); svg.appendChild(woLine); svg.appendChild(wsLine);
+
+// static labels + arrows
+svg.appendChild(tx(IX+N*IC/2,IY-14,'input · 16×16',{f:B,s:14}));
+svg.appendChild(tx(CX+C*CC/2,CY-14,'pooled · 4×4',{f:G,s:14}));
+svg.appendChild(tx(WX+N*OC/2,WY-14,'decoder — no skip',{f:G,s:14}));
+svg.appendChild(tx(SX+N*OC/2,SY-14,'decoder — with skip',{f:O,s:14}));
+function arrow(x1,y1,x2,y2,colour,dash){const L=Math.hypot(x2-x1,y2-y1),ux=(x2-x1)/L,uy=(y2-y1)/L,hx=x2-8*ux,hy=y2-8*uy;
+  return [el('line',{x1,y1,x2:hx,y2:hy,stroke:colour,'stroke-width':1.6,'stroke-dasharray':dash||''}),
+          el('polygon',{points:`${x2},${y2} ${hx-4*uy},${hy+4*ux} ${hx+4*uy},${hy-4*ux}`,fill:colour})];}
+arrow(IX+N*IC+6,IY+N*IC/2,CX-6,CY+C*CC/2,G).forEach(e=>svg.appendChild(e));
+const poolLbl=tx((IX+N*IC+CX)/2,IY+N*IC/2-10,'pool',{f:G,s:12}); svg.appendChild(poolLbl);
+arrow(CX+C*CC+6,CY+8,WX-6,WY+N*OC/2,G).forEach(e=>svg.appendChild(e));
+svg.appendChild(tx((CX+C*CC+WX)/2+6,CY-6,'upsample',{f:G,s:12}));
+// skip arc (drawn progressively in phase 4)
+const skipPath=el('path',{d:`M ${IX+N*IC-10},${IY+8} C 360,40 470,300 ${SX-8},${SY+N*OC/2}`,fill:'none',stroke:O,'stroke-width':2.4,'stroke-dasharray':'7 6'});
+const skipLen=760; skipPath.setAttribute('stroke-dashoffset',skipLen); skipPath.style.strokeDasharray=skipLen; svg.appendChild(skipPath);
+const skipHead=el('polygon',{points:`${SX-8},${SY+N*OC/2} ${SX-18},${SY+N*OC/2-5} ${SX-18},${SY+N*OC/2+5}`,fill:O,opacity:0}); svg.appendChild(skipHead);
+const skipLbl=tx(430,150,'skip: copy the sharp map across',{f:O,s:14}); skipLbl.setAttribute('opacity',0); svg.appendChild(skipLbl);
+
+// pooling highlight (4x4 block on input)
+const poolHi=el('rect',{x:0,y:0,width:4*IC,height:4*IC,fill:'rgba(29,78,216,0.08)',stroke:B,'stroke-width':2,opacity:0}); svg.appendChild(poolHi);
+const caption=tx(450,474,'',{f:K,s:17}); svg.appendChild(caption);
+
+const setOp=(cells,n)=>cells.forEach((e,i)=>e.setAttribute('opacity', i<n?1:0));
+const L=13000, t0=performance.now();
+function frame(){
+  requestAnimationFrame(frame);
+  const t=(performance.now()-t0)%L;
+  // phase 1: input fade
+  const inOp=Math.min(1,t/1500); inCells.forEach(e=>e.setAttribute('opacity',inOp));
+  // reset trailing panels at loop start
+  if(t<2500){setOp(coCells,0);setOp(woCells,0);setOp(wsCells,0);poolHi.setAttribute('opacity',0);
+    skipPath.setAttribute('stroke-dashoffset',skipLen);skipHead.setAttribute('opacity',0);skipLbl.setAttribute('opacity',0);
+    woLine.setAttribute('opacity',0);wsLine.setAttribute('opacity',0);
+    caption.textContent='a sharp shape — every edge is crisp';}
+  // phase 2: pool -> coarse fills
+  if(t>=2500&&t<5000){const p=(t-2500)/2500, k=Math.floor(p*16); setOp(coCells,k+1);
+    const br=Math.floor(k/4),bc=k%4; poolHi.setAttribute('opacity',1);
+    poolHi.setAttribute('x',IX+bc*4*IC); poolHi.setAttribute('y',IY+br*4*IC);
+    caption.textContent='encoder pools — 16×16 → 4×4, the boundary is lost';}
+  if(t>=5000){setOp(coCells,16);poolHi.setAttribute('opacity',0);}
+  // phase 3: no-skip output fills (blurry)
+  if(t>=5000&&t<7500){const p=(t-5000)/2500; setOp(woCells,Math.floor(p*256)); woLine.setAttribute('opacity',Math.min(1,p*2));
+    caption.textContent='upsampling the coarse map alone → blurry, smeared edges';}
+  if(t>=7500){setOp(woCells,256);woLine.setAttribute('opacity',1);}
+  // phase 4: skip draws
+  if(t>=7500&&t<8600){const p=(t-7500)/1100; skipPath.setAttribute('stroke-dashoffset',skipLen*(1-p));
+    skipLbl.setAttribute('opacity',Math.min(1,p*1.5)); if(p>0.9)skipHead.setAttribute('opacity',1);
+    caption.textContent='skip connection: copy the encoder’s sharp map straight across';}
+  if(t>=8600){skipPath.setAttribute('stroke-dashoffset',0);skipHead.setAttribute('opacity',1);skipLbl.setAttribute('opacity',1);}
+  // phase 5: with-skip output fills (sharp)
+  if(t>=8600&&t<11000){const p=(t-8600)/2400; setOp(wsCells,Math.floor(p*256)); wsLine.setAttribute('opacity',Math.min(1,p*2));
+    caption.textContent='with the skip, the boundary is crisp and correctly placed';}
+  if(t>=11000){setOp(wsCells,256);wsLine.setAttribute('opacity',1);
+    caption.textContent='left = no skip (blurry)      right = with skip (sharp)';}
+}
+frame();
+</script>
+</body>
+</html>
