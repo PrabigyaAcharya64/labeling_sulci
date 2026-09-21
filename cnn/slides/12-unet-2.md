@@ -1,0 +1,1 @@
+<img src="images/unet_2.jpg" alt="U-Net encoder-decoder over real street-scene images: the encoder downsamples an input photo, the decoder upsamples to a segmentation mask, with green skip-connection arrows carrying detail across each level" style="display:block;margin:0 auto;width:100%;max-width:820px;">
