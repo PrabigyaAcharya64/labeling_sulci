@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mesh Laplacian</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#fff;overflow:hidden;}
+  body{font-family:Inter,system-ui,sans-serif;color:#1A1A1A;}
+  #stage{position:absolute;top:50%;left:50%;width:900px;height:506px;transform-origin:center center;}
+</style>
+</head>
+<body>
+<div id="stage"><svg id="svg" viewBox="0 0 900 506" width="900" height="506"></svg></div>
+<script>
+window.addEventListener('keydown',e=>{if(window.parent===window)return;const k=['ArrowRight','ArrowLeft','ArrowUp','ArrowDown',' ','Escape'];if(k.indexOf(e.key)<0)return;e.preventDefault();window.parent.postMessage({type:'deckkey',key:e.key},'*');});
+(function(){const s=document.getElementById('stage');function fit(){const k=Math.min(innerWidth/900,innerHeight/506);s.style.transform=`translate(-50%,-50%) scale(${k})`;}fit();addEventListener('resize',fit);new ResizeObserver(fit).observe(document.body);})();
+const O="#C2410C",G="#6B7280",R="#E5E7EB",K="#1A1A1A",B="#1D4ED8",NS="http://www.w3.org/2000/svg";
+const svg=document.getElementById('svg');
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function tx(x,y,s,o={}){const e=el('text',{x,y,'text-anchor':o.a||'middle','font-size':o.s||14,fill:o.f||K,'font-family':o.ff||"Inter,system-ui,sans-serif"});e.textContent=s;return e;}
+svg.appendChild(tx(450,44,'the Laplacian compares the centre to its neighbours',{f:G,s:16}));
+// cross-section: left, centre, right vertices; centre height oscillates
+const BX=300, BY=280, GAP=150, SCALE=150;   // baseline
+const base=0.5;
+// baseline dashed (neighbour level)
+const bl=el('line',{x1:BX-GAP-30,y1:0,x2:BX+GAP+30,y2:0,stroke:R,'stroke-width':1,'stroke-dasharray':'5 5'}); svg.appendChild(bl);
+const segL=el('line',{stroke:O,'stroke-width':3}); svg.appendChild(segL);
+const segR=el('line',{stroke:O,'stroke-width':3}); svg.appendChild(segR);
+function dot(){return el('circle',{r:7,fill:G});}
+const dL=dot(),dC=el('circle',{r:9,fill:B}),dR=dot(); svg.appendChild(dL);svg.appendChild(dR);svg.appendChild(dC);
+const labC=tx(0,0,'',{f:B,s:14,ff:"'IBM Plex Mono',monospace"}); svg.appendChild(labC);
+svg.appendChild(tx(BX-GAP,320,'neighbour',{f:G,s:13}));
+svg.appendChild(tx(BX+GAP,320,'neighbour',{f:G,s:13}));
+svg.appendChild(tx(BX,335,'centre',{f:B,s:13}));
+// laplacian meter (right)
+const MX=690;
+svg.appendChild(tx(MX,150,'∇²  (centre − neighbours)',{f:G,s:14}));
+svg.appendChild(el('line',{x1:MX,y1:180,x2:MX,y2:360,stroke:R,'stroke-width':1.4}));
+svg.appendChild(el('line',{x1:MX-70,y1:270,x2:MX+70,y2:270,stroke:R,'stroke-width':1}));
+const meter=el('rect',{x:MX,y:270,width:34,height:0,fill:O}); svg.appendChild(meter);
+const meterVal=tx(MX,150,'',{s:20,ff:"'IBM Plex Mono',monospace",f:O}); meterVal.setAttribute('y',450); svg.appendChild(meterVal);
+svg.appendChild(tx(MX+52,274,'0',{s:12,f:G,a:'start'}));
+const t0=performance.now();
+const yOf=v=>BY-(v-base)*SCALE - 0*0;      // higher value -> up
+function frame(){requestAnimationFrame(frame);
+  const t=(performance.now()-t0)/1000;
+  const c=base+0.45*Math.sin(t*0.8);
+  const yc=BY-(c-base)*SCALE, yn=BY;        // neighbours at baseline
+  bl.setAttribute('y1',yn);bl.setAttribute('y2',yn);
+  dL.setAttribute('cx',BX-GAP);dL.setAttribute('cy',yn);
+  dR.setAttribute('cx',BX+GAP);dR.setAttribute('cy',yn);
+  dC.setAttribute('cx',BX);dC.setAttribute('cy',yc);
+  segL.setAttribute('x1',BX-GAP);segL.setAttribute('y1',yn);segL.setAttribute('x2',BX);segL.setAttribute('y2',yc);
+  segR.setAttribute('x1',BX);segR.setAttribute('y1',yc);segR.setAttribute('x2',BX+GAP);segR.setAttribute('y2',yn);
+  labC.setAttribute('x',BX+22);labC.setAttribute('y',yc+4);labC.textContent=c.toFixed(2);
+  // laplacian = neighbours_avg - centre  (positive when centre is a dip)
+  const lap=(base - c)*2;                    // ~ -0.9..0.9
+  const h=Math.abs(lap)*150;
+  meter.setAttribute('y',lap<0?270:270-h); meter.setAttribute('height',h);
+  meterVal.textContent='∇² = '+lap.toFixed(2);
+}
+frame();
+</script>
+</body>
+</html>
