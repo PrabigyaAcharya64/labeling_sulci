@@ -33,6 +33,8 @@
     /* overview: let clicks select iframe slides instead of hitting the animation */
     .reveal.overview iframe { pointer-events: none; }
   </style>
+  <script src="../animation-controller.js"></script>
+  <script src="../deck-animation-controller.js"></script>
 </head>
 <body>
   <div class="reveal">
@@ -70,13 +72,6 @@
       transition: 'fade', transitionSpeed: 'fast',
       controls: false, progress: false, slideNumber: false,
       hash: true, fragments: true
-    });
-    // P pauses / resumes the current slide's animation
-    document.addEventListener('keydown', function(e){
-      if(e.key==='p'||e.key==='P'){
-        var s=Reveal.getCurrentSlide();
-        if(s) s.querySelectorAll('iframe').forEach(function(f){ try{ f.contentWindow.postMessage({type:'toggle-pause'},'*'); }catch(_){ } });
-      }
     });
     // in overview, wheel/trackpad scrolls through slides so you can browse and click one
     var _wl=0;
