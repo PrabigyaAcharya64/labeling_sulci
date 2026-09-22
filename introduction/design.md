@@ -3,7 +3,7 @@
 ## Stack
 Reveal.js, slides in external Markdown, loaded per section.
 
-knowledge/
+introduction/
   index.html          reveal init + all custom CSS
   facts.md            source of truth for every claim
   slides/
@@ -19,7 +19,7 @@ knowledge/
     10-takeaway.md
   figs/               screenshots of paper Figures 1, 2, 3, 5
 
-Run: `python3 -m http.server` in knowledge/, open localhost:8000
+Run: `python3 serve.py` from the project root, open localhost:8000/introduction/
 
 ## Slide content — the core rule
 Slides carry a HEADING and a VISUAL. Nothing else.
