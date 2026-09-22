@@ -65,22 +65,16 @@
 
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/markdown/markdown.js"></script>
+  <script src="../overview-carousel.js"></script>
   <script>
     Reveal.initialize({
       plugins: [ RevealMarkdown ],
       navigationMode: 'linear',
       transition: 'fade', transitionSpeed: 'fast',
       controls: false, progress: false, slideNumber: false,
-      hash: true, fragments: true
+      hash: true, fragments: true, loop: false
     });
-    // in overview, wheel/trackpad scrolls through slides so you can browse and click one
-    var _wl=0;
-    window.addEventListener('wheel', function(e){
-      if(!Reveal.isOverview()) return;
-      var now=Date.now(); if(now-_wl<200) return; _wl=now;
-      var d=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;
-      if(d>0) Reveal.next(); else Reveal.prev();
-    }, {passive:true});
+    installOverviewCarousel(Reveal);
 
     Reveal.addKeyBinding({ keyCode: 40, key: '↓', description: 'Next slide' },
       () => Reveal.slide(Reveal.getIndices().h + 1, 0));
@@ -97,6 +91,8 @@
         case 'ArrowDown': Reveal.slide(Reveal.getIndices().h + 1, 0); break;
         case 'ArrowUp':   Reveal.slide(Math.max(0, Reveal.getIndices().h - 1), 0); break;
         case 'Escape':    Reveal.toggleOverview(); break;
+        case 'o':
+        case 'O':         Reveal.toggleOverview(); break;
       }
     });
   </script>

@@ -216,10 +216,20 @@
   });
 
   window.addEventListener('keydown', function (event) {
-    if (event.key !== 'p' && event.key !== 'P') return;
+    const isPauseKey = event.key === 'p' || event.key === 'P';
+    const isOverviewKey = event.key === 'o' || event.key === 'O';
+    if (!isPauseKey && !isOverviewKey) return;
     if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
     const target = event.target;
     if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) {
+      return;
+    }
+    if (isOverviewKey) {
+      if (window.parent !== window) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.parent.postMessage({ type: 'deckkey', key: 'o' }, '*');
+      }
       return;
     }
     event.preventDefault();
