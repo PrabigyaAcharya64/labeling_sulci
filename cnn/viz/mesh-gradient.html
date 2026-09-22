@@ -13,6 +13,33 @@
 <div id="stage"><svg id="svg" viewBox="0 0 900 506" width="900" height="506"></svg></div>
 <script>
 window.addEventListener('keydown',e=>{if(window.parent===window)return;const k=['ArrowRight','ArrowLeft','ArrowUp','ArrowDown',' ','Escape'];if(k.indexOf(e.key)<0)return;e.preventDefault();window.parent.postMessage({type:'deckkey',key:e.key},'*');});
+// P pauses / resumes this animation (rAF, setInterval and setTimeout)
+(function(){
+  var paused=false, mark=0, off=0;
+  var rawNow=performance.now.bind(performance);
+  performance.now=function(){return (paused?mark:rawNow())-off;};
+  var RAF=window.requestAnimationFrame.bind(window), held=[];
+  window.requestAnimationFrame=function(cb){ if(paused){held.push(cb);return 0;} return RAF(cb); };
+  var SI=window.setInterval.bind(window), CI=window.clearInterval.bind(window), ivs=[];
+  window.setInterval=function(cb,d){ var r={cb:cb,d:d,id:null}; r.id=SI(cb,d); ivs.push(r); return r.id; };
+  window.clearInterval=function(id){ CI(id); for(var i=ivs.length-1;i>=0;i--) if(ivs[i].id===id) ivs.splice(i,1); };
+  var ST=window.setTimeout.bind(window), CT=window.clearTimeout.bind(window), tos=[];
+  function sched(r){ r.start=rawNow(); r.id=ST(function(){ var i=tos.indexOf(r); if(i>=0)tos.splice(i,1); r.cb(); }, r.rem); return r.id; }
+  window.setTimeout=function(cb,d){ var r={cb:cb,rem:d||0,start:0,id:null}; sched(r); tos.push(r); return r.id; };
+  window.clearTimeout=function(id){ CT(id); for(var i=tos.length-1;i>=0;i--) if(tos[i].id===id) tos.splice(i,1); };
+  function toggle(){
+    if(!paused){ paused=true; mark=rawNow();
+      ivs.forEach(function(r){ if(r.id!=null){CI(r.id); r.id=null;} });
+      tos.forEach(function(r){ r.rem=Math.max(0, r.rem-(rawNow()-r.start)); CT(r.id); r.id=null; });
+    } else { paused=false; off+=rawNow()-mark;
+      ivs.forEach(function(r){ if(r.id==null){ r.id=SI(r.cb,r.d); } });
+      tos.forEach(function(r){ sched(r); });
+      var h=held; held=[]; h.forEach(function(cb){ RAF(cb); });
+    }
+  }
+  window.addEventListener('keydown',function(e){ if(e.key==='p'||e.key==='P'){ e.preventDefault(); toggle(); } });
+  window.addEventListener('message',function(e){ if(e.data&&e.data.type==='toggle-pause'){ toggle(); } });
+})();
 (function(){const s=document.getElementById('stage');function fit(){const k=Math.min(innerWidth/900,innerHeight/506);s.style.transform=`translate(-50%,-50%) scale(${k})`;}fit();addEventListener('resize',fit);new ResizeObserver(fit).observe(document.body);})();
 const O="#C2410C",G="#6B7280",R="#E5E7EB",K="#1A1A1A",B="#1D4ED8",NS="http://www.w3.org/2000/svg";
 const svg=document.getElementById('svg');

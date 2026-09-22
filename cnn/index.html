@@ -30,6 +30,8 @@
     .reveal .num, .reveal code { font-family: 'IBM Plex Mono', monospace; }
     .reveal .fragment { transition: opacity 300ms ease-out; }
     @media (prefers-reduced-motion: reduce) { .reveal .fragment { transition: none; } }
+    /* overview: let clicks select iframe slides instead of hitting the animation */
+    .reveal.overview iframe { pointer-events: none; }
   </style>
 </head>
 <body>
@@ -69,6 +71,22 @@
       controls: false, progress: false, slideNumber: false,
       hash: true, fragments: true
     });
+    // P pauses / resumes the current slide's animation
+    document.addEventListener('keydown', function(e){
+      if(e.key==='p'||e.key==='P'){
+        var s=Reveal.getCurrentSlide();
+        if(s) s.querySelectorAll('iframe').forEach(function(f){ try{ f.contentWindow.postMessage({type:'toggle-pause'},'*'); }catch(_){ } });
+      }
+    });
+    // in overview, wheel/trackpad scrolls through slides so you can browse and click one
+    var _wl=0;
+    window.addEventListener('wheel', function(e){
+      if(!Reveal.isOverview()) return;
+      var now=Date.now(); if(now-_wl<200) return; _wl=now;
+      var d=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;
+      if(d>0) Reveal.next(); else Reveal.prev();
+    }, {passive:true});
+
     Reveal.addKeyBinding({ keyCode: 40, key: '↓', description: 'Next slide' },
       () => Reveal.slide(Reveal.getIndices().h + 1, 0));
     Reveal.addKeyBinding({ keyCode: 38, key: '↑', description: 'Prev slide' },
