@@ -5,7 +5,7 @@ fetches and serves stale slides).
 
 Run from the project root:
     python3 serve.py
-Then open: http://localhost:8000/knowledge/
+Then open: http://localhost:8000/
 """
 import http.server
 
